@@ -44,7 +44,23 @@ func ReadPump(client *domain.Client, h *hub.Hub) {
 			continue
 		}
 		for _, symbol := range sub.Symbol {
-			client.Subscriptions[symbol] = sub.Type == "subscribe"
+			if sub.Type == "subscribe" {
+				client.Subscriptions[symbol] = true
+				if _, ok := h.Subscriptions[symbol]; !ok {
+					h.Subscriptions[symbol] = make(map[*domain.Client]bool)
+				}
+				h.Subscriptions[symbol][client] = true
+			} else {
+				delete(client.Subscriptions, symbol)
+				if subscribers, ok := h.Subscriptions[symbol]; ok {
+
+					delete(subscribers, client)
+
+					if len(subscribers) == 0 {
+						delete(h.Subscriptions, symbol)
+					}
+				}
+			}
 		}
 	}
 }
