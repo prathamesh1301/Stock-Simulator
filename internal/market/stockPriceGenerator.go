@@ -1,15 +1,17 @@
 package market
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"stock-sim/internal/domain"
-	"stock-sim/internal/hub"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
-func StockPriceGenerator(hubS *hub.Hub) {
+func StockPriceGenerator(redisClient *redis.Client) {
 	symbols := map[string]float64{
 		"GOOG": 100.0,
 		"AAPL": 150.0,
@@ -30,11 +32,11 @@ func StockPriceGenerator(hubS *hub.Hub) {
 				fmt.Println("Error marshaling stock data:", err)
 				continue
 			}
-			event := domain.MarketEvent{
-				StockName: symbol,
-				Data:      dataBytes,
+			err = redisClient.Publish(context.Background(), "stocks", dataBytes).Err()
+			if err != nil {
+				fmt.Println("Error publishing stock data:", err)
+				continue
 			}
-			hubS.Broadcast <- event
 		}
 	}
 }
