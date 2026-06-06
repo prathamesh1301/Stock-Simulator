@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"stock-sim/internal/domain"
 	"stock-sim/internal/hub"
-	ws "stock-sim/internal/websocket" 
-	"github.com/gorilla/websocket"
 	"stock-sim/internal/market"
+	"stock-sim/internal/redis"
+	ws "stock-sim/internal/websocket"
+
+	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
@@ -46,7 +48,9 @@ func wsHandler() http.HandlerFunc {
 func main() {
 	fmt.Println("Hello World")
 	go hubS.Run()
-	go market.StockPriceGenerator(hubS)
+	redisClient := redis.NewClient()
+	go market.StockPriceGenerator(redisClient)
+	go market.StartRedisSubscriber(redisClient, hubS)
 	srv := http.Server{
 		Addr:    ":8080",
 		Handler: wsHandler(),
