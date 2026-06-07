@@ -1,8 +1,10 @@
 package hub
 
 import (
+	"context"
 	"fmt"
 	"stock-sim/internal/domain"
+	"sync"
 )
 
 type Hub struct {
@@ -28,11 +30,14 @@ func NewHub() *Hub {
 	}
 }
 
-func (h *Hub) Run() {
-
+func (h *Hub) Run(ctx context.Context,wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 
 		select {
+			case <-ctx.Done():
+				fmt.Println("Stopping hub")
+				return
 
 		case client := <-h.Register:
 
