@@ -58,7 +58,8 @@ func main() {
 	go hubS.Run(ctx, &wg)
 	redisClient := redis.NewClient()
 	wg.Add(1)
-	go market.StockPriceGenerator(ctx, redisClient, &wg)
+	// go market.StockPriceGenerator(ctx, redisClient, &wg)
+	go market.StartBinanceMarket(ctx, redisClient,&wg)
 	wg.Add(1)
 	go market.StartRedisSubscriber(ctx, redisClient, hubS, &wg)
 	srv := http.Server{

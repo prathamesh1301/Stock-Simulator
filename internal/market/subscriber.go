@@ -26,6 +26,7 @@ func StartRedisSubscriber(ctx context.Context, redisClient *redis.Client, hub *h
 				fmt.Println("Error unmarshalling stock data:", err)
 				continue
 			}
+			fmt.Println("stockData from redis: ", stockData.Symbol, " ", stockData.Price)
 			hub.Broadcast <- domain.MarketEvent{
 				StockName: stockData.Symbol,
 				Data:      []byte(msg.Payload),
