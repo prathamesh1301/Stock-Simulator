@@ -54,12 +54,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
+	feedCommands := make(chan domain.FeedCommand)
 	wg.Add(1)
-	go hubS.Run(ctx, &wg)
+	go hubS.Run(ctx, &wg,feedCommands)
 	redisClient := redis.NewClient()
 	wg.Add(1)
 	// go market.StockPriceGenerator(ctx, redisClient, &wg)
-	go market.StartBinanceMarket(ctx, redisClient,&wg)
+	go market.StartBinanceMarket(ctx, redisClient,&wg,feedCommands)
 	wg.Add(1)
 	go market.StartRedisSubscriber(ctx, redisClient, hubS, &wg)
 	srv := http.Server{

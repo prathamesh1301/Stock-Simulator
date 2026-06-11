@@ -50,8 +50,23 @@ func ReadPump(client *domain.Client, h *hub.Hub) {
 					h.Subscriptions[symbol] = make(map[*domain.Client]bool)
 				}
 				h.Subscriptions[symbol][client] = true
+				h.SymbolCounts[symbol]++;
+				if(h.SymbolCounts[symbol]==1){
+					h.FeedCommands <- domain.FeedCommand{
+						Symbol: symbol,
+						Action: "subscribe",
+					}
+				}
 			} else {
 				delete(client.Subscriptions, symbol)
+				h.SymbolCounts[symbol]--;
+				if(h.SymbolCounts[symbol]==0){
+					delete(h.SymbolCounts,symbol)
+					h.FeedCommands <- domain.FeedCommand{
+						Symbol: symbol,
+						Action: "unsubscribe",
+					}
+				}
 				if subscribers, ok := h.Subscriptions[symbol]; ok {
 
 					delete(subscribers, client)

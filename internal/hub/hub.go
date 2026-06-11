@@ -15,6 +15,8 @@ type Hub struct {
 
 	Broadcast     chan domain.MarketEvent
 	Subscriptions map[string]map[*domain.Client]bool
+	SymbolCounts map[string]int
+	FeedCommands chan domain.FeedCommand
 }
 
 func NewHub() *Hub {
@@ -27,10 +29,12 @@ func NewHub() *Hub {
 
 		Broadcast:     make(chan domain.MarketEvent),
 		Subscriptions: make(map[string]map[*domain.Client]bool),
+		SymbolCounts: make(map[string]int),
+		FeedCommands: make(chan domain.FeedCommand),
 	}
 }
 
-func (h *Hub) Run(ctx context.Context,wg *sync.WaitGroup) {
+func (h *Hub) Run(ctx context.Context,wg *sync.WaitGroup,feedCommands chan domain.FeedCommand) {
 	defer wg.Done()
 	for {
 
@@ -89,6 +93,9 @@ func (h *Hub) Run(ctx context.Context,wg *sync.WaitGroup) {
 					h.Unregister <- client
 				}
 			}
+		case feed:= <-h.FeedCommands:
+			fmt.Println("Feed command received in hub for stock :",feed.Symbol)
+			feedCommands <- feed
 		}
 	}
 }
