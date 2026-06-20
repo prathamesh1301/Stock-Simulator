@@ -59,6 +59,11 @@ func main() {
 	wg.Add(1)
 	go hubS.Run(ctx, &wg, feedCommands)
 	redisClient := redis.NewClient()
+
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		log.Fatalf("REDIS CONNECTION FAILED: %v", err)
+	}
+
 	wg.Add(1)
 	// go market.StockPriceGenerator(ctx, redisClient, &wg)
 	go market.StartBinanceMarket(ctx, redisClient, &wg, feedCommands)
