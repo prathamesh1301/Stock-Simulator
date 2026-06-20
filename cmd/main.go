@@ -10,6 +10,7 @@ import (
 	"stock-sim/internal/domain"
 	"stock-sim/internal/hub"
 	"stock-sim/internal/market"
+	"stock-sim/internal/metrics"
 	"stock-sim/internal/redis"
 	ws "stock-sim/internal/websocket"
 	"sync"
@@ -56,16 +57,21 @@ func main() {
 	var wg sync.WaitGroup
 	feedCommands := make(chan domain.FeedCommand)
 	wg.Add(1)
-	go hubS.Run(ctx, &wg,feedCommands)
+	go hubS.Run(ctx, &wg, feedCommands)
 	redisClient := redis.NewClient()
 	wg.Add(1)
 	// go market.StockPriceGenerator(ctx, redisClient, &wg)
-	go market.StartBinanceMarket(ctx, redisClient,&wg,feedCommands)
+	go market.StartBinanceMarket(ctx, redisClient, &wg, feedCommands)
 	wg.Add(1)
 	go market.StartRedisSubscriber(ctx, redisClient, hubS, &wg)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", wsHandler())
+	mux.HandleFunc("/metrics", metrics.GetCurrentMetrics)
+
 	srv := http.Server{
 		Addr:    ":8080",
-		Handler: wsHandler(),
+		Handler: mux,
 	}
 	go func() {
 		fmt.Println("HTTP server listening on :8080")

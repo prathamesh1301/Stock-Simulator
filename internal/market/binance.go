@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"stock-sim/internal/domain"
+	"stock-sim/internal/metrics"
 	"strings"
 	"time"
 
@@ -37,6 +38,7 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 		}
 		fmt.Println("Binance Connected")
 		for k, _ := range activeStocksMap {
+			metrics.IncrementTopSymbols(k)
 			subscribeMsg := map[string]interface{}{
 				"method": "SUBSCRIBE",
 				"params": []string{
@@ -55,13 +57,7 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 
 		go func() {
 			defer close(disconnect)
-			go func() {
-				time.Sleep(6 * time.Second)
 
-				fmt.Println("FORCING BINANCE DISCONNECT")
-
-				conn.Close()
-			}()
 			for {
 				select {
 				case <-ctx.Done():
@@ -75,6 +71,7 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 					fmt.Println(err)
 					return
 				}
+				metrics.IncrementMessagesReceivedTotal()
 
 				fmt.Println(string(data))
 				var binanceEvent domain.BinanceEvent
@@ -114,6 +111,7 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 			case feed := <-feedCommands:
 				fmt.Println("Feed command received for stock :", feed.Symbol)
 				if feed.Action == "subscribe" {
+					
 					activeStocksMap[feed.Symbol] = true
 					subscribeMsg := map[string]interface{}{
 						"method": "SUBSCRIBE",
@@ -151,6 +149,9 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 
 				case <-ctx.Done():
 					return
+				}
+				for k:= range activeStocksMap {
+					metrics.DecrementTopSymbols(k)
 				}
 				break connectedLoop
 			}

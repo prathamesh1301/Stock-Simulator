@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"stock-sim/internal/domain"
+	"stock-sim/internal/metrics"
 	"sync"
 )
 
@@ -42,6 +43,7 @@ func (h *Hub) Run(ctx context.Context, wg *sync.WaitGroup, feedCommands chan dom
 		case client := <-h.Register:
 			h.Clients[client] = true
 			fmt.Println("Client registered")
+			metrics.IncrementConnectedClients()
 
 		case client := <-h.Unregister:
 
@@ -54,6 +56,7 @@ func (h *Hub) Run(ctx context.Context, wg *sync.WaitGroup, feedCommands chan dom
 						}
 					}
 				}
+				metrics.DecrementConnectedClients()
 				delete(h.Clients, client)
 				close(client.Send)
 				client.Conn.Close()
@@ -68,6 +71,7 @@ func (h *Hub) Run(ctx context.Context, wg *sync.WaitGroup, feedCommands chan dom
 			for client := range subscribers {
 				select {
 				case client.Send <- event.Data:
+					
 				default:
 					h.Unregister <- client
 				}
