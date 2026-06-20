@@ -86,12 +86,16 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = ":8080"
+		port = "8080"
 	}
+
+	fmt.Println("PORT =", port)
+
 	srv := http.Server{
-		Addr:    port,
+		Addr:    ":" + port,
 		Handler: mux,
 	}
+
 	go func() {
 		fmt.Println("HTTP server listening on", port)
 
