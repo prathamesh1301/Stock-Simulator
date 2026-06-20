@@ -69,12 +69,16 @@ func main() {
 	mux.HandleFunc("/", wsHandler())
 	mux.HandleFunc("/metrics", metrics.GetCurrentMetrics)
 
+	port := os.Getenv("HTTP_PORT")
+	if port == "" {
+		port = ":8080"
+	}
 	srv := http.Server{
-		Addr:    ":8080",
+		Addr:    port,
 		Handler: mux,
 	}
 	go func() {
-		fmt.Println("HTTP server listening on :8080")
+		fmt.Println("HTTP server listening on", port)
 
 		if err := srv.ListenAndServe(); err != nil &&
 			err != http.ErrServerClosed {
