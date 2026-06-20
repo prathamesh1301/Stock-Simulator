@@ -32,7 +32,7 @@ func wsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Fatal("upgrade to websockets failed ", err)
+			log.Println("upgrade to websockets failed ", err)
 			fmt.Println(err)
 			return
 		}
@@ -84,7 +84,7 @@ func main() {
 	// Metrics endpoint
 	mux.HandleFunc("/metrics", metrics.GetCurrentMetrics)
 
-	port := os.Getenv("HTTP_PORT")
+	port := os.Getenv("PORT")
 	if port == "" {
 		port = ":8080"
 	}
