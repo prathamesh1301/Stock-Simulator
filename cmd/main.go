@@ -32,7 +32,7 @@ func wsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Fatal("upgrade to websockets failed ",err)
+			log.Fatal("upgrade to websockets failed ", err)
 			fmt.Println(err)
 			return
 		}
@@ -72,7 +72,16 @@ func main() {
 	go market.StartRedisSubscriber(ctx, redisClient, hubS, &wg)
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", wsHandler())
+	// Health check / homepage
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Stock Simulator Running"))
+	})
+
+	// WebSocket endpoint
+	mux.HandleFunc("/ws", wsHandler())
+
+	// Metrics endpoint
 	mux.HandleFunc("/metrics", metrics.GetCurrentMetrics)
 
 	port := os.Getenv("HTTP_PORT")
