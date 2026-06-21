@@ -90,7 +90,12 @@ func WritePump(client *domain.Client) {
 
 	for {
 		select {
-		case message, _ := <-client.Send:
+		case message, ok := <-client.Send:
+			if !ok {
+				// Hub closed the channel; send a close frame and exit.
+				client.Conn.WriteMessage(gorilla.CloseMessage, []byte{})
+				return
+			}
 			err := client.Conn.WriteMessage(
 				gorilla.TextMessage,
 				message,

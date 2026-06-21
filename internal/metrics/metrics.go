@@ -3,6 +3,7 @@ package metrics
 import (
 	"encoding/json"
 	"net/http"
+	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -89,6 +90,7 @@ func GetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
 		"messages_sent_total":      atomic.LoadInt64(&MessagesSentTotal),
 		"binance_reconnects_total": atomic.LoadInt64(&BinanceReconnectsTotal),
 		"top_symbols":              top5,
+		"goroutines":               runtime.NumGoroutine(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

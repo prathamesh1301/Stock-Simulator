@@ -9,9 +9,9 @@ import (
 )
 
 type Hub struct {
-	Clients map[*domain.Client]bool
-	Register   chan *domain.Client
-	Unregister chan *domain.Client
+	Clients       map[*domain.Client]bool
+	Register      chan *domain.Client
+	Unregister    chan *domain.Client
 	Broadcast     chan domain.MarketEvent
 	Subscriptions map[string]map[*domain.Client]bool
 	SymbolCounts  map[string]int
@@ -21,13 +21,13 @@ type Hub struct {
 func NewHub() *Hub {
 
 	return &Hub{
-		Clients: make(map[*domain.Client]bool),
-		Register:   make(chan *domain.Client),
-		Unregister: make(chan *domain.Client),
-		Broadcast:     make(chan domain.MarketEvent),
+		Clients:       make(map[*domain.Client]bool),
+		Register:      make(chan *domain.Client),
+		Unregister:    make(chan *domain.Client, 64),
+		Broadcast:     make(chan domain.MarketEvent, 256),
 		Subscriptions: make(map[string]map[*domain.Client]bool),
 		SymbolCounts:  make(map[string]int),
-		FeedCommands:  make(chan domain.FeedCommand),
+		FeedCommands:  make(chan domain.FeedCommand, 64),
 	}
 }
 
@@ -51,6 +51,20 @@ func (h *Hub) Run(ctx context.Context, wg *sync.WaitGroup, feedCommands chan dom
 				for symbol := range client.Subscriptions {
 					if subscribers, ok := h.Subscriptions[symbol]; ok {
 						delete(subscribers, client)
+
+						h.SymbolCounts[symbol]--
+
+						metrics.DecrementTopSymbols(symbol)
+
+						if h.SymbolCounts[symbol] == 0 {
+							delete(h.SymbolCounts, symbol)
+
+							h.FeedCommands <- domain.FeedCommand{
+								Symbol: symbol,
+								Action: "unsubscribe",
+							}
+						}
+
 						if len(subscribers) == 0 {
 							delete(h.Subscriptions, symbol)
 						}
@@ -71,7 +85,7 @@ func (h *Hub) Run(ctx context.Context, wg *sync.WaitGroup, feedCommands chan dom
 			for client := range subscribers {
 				select {
 				case client.Send <- event.Data:
-					
+
 				default:
 					h.Unregister <- client
 				}

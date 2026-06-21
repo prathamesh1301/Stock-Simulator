@@ -37,7 +37,8 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 			continue
 		}
 		fmt.Println("Binance Connected")
-		for k, _ := range activeStocksMap {
+		resubOk := true
+		for k := range activeStocksMap {
 			metrics.IncrementTopSymbols(k)
 			subscribeMsg := map[string]interface{}{
 				"method": "SUBSCRIBE",
@@ -49,9 +50,13 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 			err = conn.WriteJSON(subscribeMsg)
 			if err != nil {
 				fmt.Println("Resubscribe failed:", err)
-				return
+				resubOk = false
+				break
 			}
-
+		}
+		if !resubOk {
+			conn.Close()
+			continue
 		}
 		disconnect := make(chan struct{})
 
