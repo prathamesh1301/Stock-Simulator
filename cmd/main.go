@@ -62,7 +62,7 @@ func main() {
 	redisClient := redis.NewClient()
 
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		log.Fatalf("REDIS CONNECTION FAILED: %v", err)
+		log.Println("REDIS CONNECTION FAILED: %v", err)
 	}
 
 	wg.Add(1)
