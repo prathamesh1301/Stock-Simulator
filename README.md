@@ -1,55 +1,111 @@
+<div align="center">
+
 # 📈 Stock Simulator
 
-A real-time stock price streaming server built with **Go**, **WebSockets**, and **Redis Pub/Sub** — designed to be horizontally scalable from day one.
+**A production-style, real-time market data streaming server**
 
-> Simulates live market data for multiple stock symbols and streams price updates to subscribed WebSocket clients in real time.
+*Built with Go · WebSockets · Redis Pub/Sub · Binance Streams*
+
+<br/>
+
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
+[![Redis](https://img.shields.io/badge/Redis-Pub%2FSub-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Binance](https://img.shields.io/badge/Binance-WebSocket-F0B90B?style=for-the-badge&logo=binance&logoColor=white)](https://binance.com/)
+[![Render](https://img.shields.io/badge/Render-Deploy%20Ready-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/)
+
+<br/>
+
+> WebSocket clients subscribe to crypto symbols and receive **live market updates** with automatic feed management, reconnection handling, metrics, and horizontal scalability.
+
+</div>
 
 ---
 
-## 🚀 Features
+## ✨ Features
 
-- ⚡ **Real-time price streaming** — stock prices update every second with simulated market fluctuations
-- 🔌 **WebSocket server** — clients connect and subscribe to specific stock symbols
-- 📡 **Redis Pub/Sub** — decouples price generation from delivery, enabling multiple server instances
-- 🎯 **Per-symbol subscriptions** — clients only receive data for the stocks they care about
-- 💓 **Heartbeat / ping-pong** — automatic connection health checks keep stale clients from piling up
-- 🧹 **Clean client lifecycle** — clients are auto-unregistered when they disconnect
+<table>
+<tr>
+<td width="50%">
+
+### 📡 Real-Time Market Data
+- Live prices from Binance WebSocket streams
+- Dynamic symbol subscriptions & unsubscriptions
+- Feed activates **only when a client is listening**
+
+### 🔌 WebSocket Server
+- Multiple concurrent clients
+- Per-client subscriptions
+- Heartbeat ping/pong support
+- Stale connection cleanup & backpressure protection
+
+### 🔴 Redis Pub/Sub
+- Decouples ingestion from delivery
+- Enables **horizontal scaling**
+- Multiple WS server instances share the same feed
+
+</td>
+<td width="50%">
+
+### 🎛️ Feed Management
+- Tracks active symbol counts
+- Auto-subscribes to Binance on first client
+- Auto-unsubscribes when last client leaves
+- Prevents unnecessary Binance traffic
+
+### 🛡️ Reliability
+- Automatic Binance reconnection
+- Stream re-subscription after reconnect
+- Graceful shutdown (SIGINT/SIGTERM)
+- Context-based cancellation
+
+### 📊 Observability
+- Connected clients, active symbols
+- Messages received / sent totals
+- Binance reconnect counter
+- Top subscribed symbols
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      Go Server                          │
-│                                                         │
-│  ┌──────────────────┐      ┌───────────────────────┐   │
-│  │ StockPriceGen    │─────▶│  Redis (Pub/Sub)      │   │
-│  │ (goroutine)      │      │  channel: "stocks"    │   │
-│  └──────────────────┘      └──────────┬────────────┘   │
-│                                       │                 │
-│                            ┌──────────▼────────────┐   │
-│                            │  RedisSubscriber      │   │
-│                            │  (goroutine)          │   │
-│                            └──────────┬────────────┘   │
-│                                       │                 │
-│                            ┌──────────▼────────────┐   │
-│                            │  Hub                  │   │
-│                            │  (event router)       │   │
-│                            └──────────┬────────────┘   │
-│                                       │                 │
-│                   ┌───────────────────┼───────────┐    │
-│                   ▼                   ▼           ▼    │
-│              [Client A]          [Client B]  [Client N] │
-│              GOOG, AAPL          MSFT         GOOG      │
-└─────────────────────────────────────────────────────────┘
+                       ┌──────────────────┐
+                       │ Binance WS Feed  │
+                       └─────────┬────────┘
+                                 │  live trade stream
+                                 ▼
+                 ┌────────────────────────────┐
+                 │  Binance Ingestion Service │
+                 │                            │
+                 │  · Dynamic Feed Management │
+                 │  · Reconnection Logic      │
+                 └─────────────┬──────────────┘
+                               │  publish
+                               ▼
+                      Redis Pub/Sub Channel
+                               │  subscribe
+                               ▼
+                 ┌───────────────────────────┐
+                 │       Redis Subscriber    │
+                 └─────────────┬─────────────┘
+                               │  broadcast
+                               ▼
+                 ┌───────────────────────────┐
+                 │            Hub            │
+                 │  · Register / Unregister  │
+                 │  · Broadcast Events       │
+                 │  · Symbol Tracking        │
+                 └────────┬──────────┬───────┘
+                          │          │
+                          ▼          ▼
+                      Client A    Client B
+                      BTCUSDT     ETHUSDT
 ```
-
-**Flow:**
-1. `StockPriceGenerator` ticks every second, simulates price changes, and **publishes** JSON payloads to Redis
-2. `StartRedisSubscriber` **subscribes** to Redis and forwards events to the Hub's broadcast channel
-3. The `Hub` routes each `MarketEvent` only to clients that have subscribed to that symbol
-4. Each client has a `WritePump` goroutine that flushes the send channel over WebSocket, and a `ReadPump` that handles subscription messages and pongs
 
 ---
 
@@ -58,76 +114,82 @@ A real-time stock price streaming server built with **Go**, **WebSockets**, and 
 ```
 stock-sim/
 ├── cmd/
-│   └── main.go                  # Entry point — wires everything together
+│   └── main.go                  # Entry point
+│
 ├── internal/
 │   ├── domain/
-│   │   ├── client.go            # Client struct (WebSocket conn + send channel + subscriptions)
-│   │   ├── stock.go             # StockData model
-│   │   ├── market_event.go      # MarketEvent (symbol + raw bytes)
-│   │   └── subscription.go      # Subscription request from client
+│   │   ├── binance.go
+│   │   ├── client.go
+│   │   ├── feed_command.go
+│   │   ├── market_event.go
+│   │   ├── stock.go
+│   │   └── subscription.go
+│   │
 │   ├── hub/
-│   │   └── hub.go               # Central event router — register, unregister, broadcast
+│   │   └── hub.go               # Client registration & broadcasting
+│   │
 │   ├── market/
-│   │   ├── stockPriceGenerator.go  # Generates fake prices, publishes to Redis
-│   │   └── subscriber.go           # Consumes Redis channel, feeds the Hub
+│   │   ├── binance.go           # Binance WS ingestion
+│   │   └── subscriber.go        # Redis subscriber
+│   │
+│   ├── metrics/
+│   │   └── metrics.go           # Custom HTTP metrics
+│   │
 │   ├── redis/
-│   │   └── client.go            # Redis client factory
+│   │   └── client.go            # Redis client wrapper
+│   │
 │   └── websocket/
-│       └── pumps.go             # ReadPump & WritePump per client
-├── go.mod
-└── go.sum
+│       └── pumps.go             # Read/write pumps per client
+│
+├── Dockerfile
+├── docker-compose.yml
+├── .env
+└── README.md
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## 🔄 Event Flow
 
-| Layer | Technology |
-|---|---|
-| Language | Go 1.25 |
-| WebSockets | [gorilla/websocket](https://github.com/gorilla/websocket) |
-| Message Broker | [Redis Pub/Sub](https://redis.io/docs/manual/pubsub/) via [go-redis/v9](https://github.com/redis/go-redis) |
-| Concurrency | Goroutines + Channels |
+### Client Subscription
 
----
-
-## 🧑‍💻 Getting Started
-
-### Prerequisites
-
-- [Go 1.21+](https://go.dev/dl/)
-- [Redis](https://redis.io/download) running on `localhost:6379`
-
-### Run
-
-```bash
-# Clone the repo
-git clone https://github.com/prathamesh1301/Stock-Simulator.git
-cd Stock-Simulator
-
-# Install dependencies
-go mod tidy
-
-# Start the server
-go run ./cmd/main.go
+```
+Client  ──►  WebSocket  ──►  Hub
+                               │
+                    SymbolCount == 1?
+                               │
+                               └──►  FeedCommand(subscribe)  ──►  Binance Feed
 ```
 
-Server starts on **`:8080`**.
+### Market Data Flow
+
+```
+Binance  ──►  Ingestion Service  ──►  Redis Publish
+                                            │
+                                      Redis Subscribe
+                                            │
+                                           Hub
+                                            │
+                                    Subscribed Clients
+```
 
 ---
 
 ## 🔌 WebSocket API
 
-Connect to `ws://localhost:8080/`.
+### Connect
 
-### Subscribe to symbols
+| Environment | URL |
+|-------------|-----|
+| Local | `ws://localhost:8080/ws` |
+| Production | `wss://your-domain/ws` |
 
-Send a JSON message to start receiving price updates:
+### Subscribe
 
 ```json
 {
   "type": "subscribe",
-  "symbol": ["GOOG", "AAPL"]
+  "symbol": ["BTCUSDT", "ETHUSDT"]
 }
 ```
 
@@ -136,40 +198,134 @@ Send a JSON message to start receiving price updates:
 ```json
 {
   "type": "unsubscribe",
-  "symbol": ["AAPL"]
+  "symbol": ["ETHUSDT"]
 }
 ```
 
-### Incoming price update (server → client)
+### Market Update (Server → Client)
 
 ```json
 {
-  "symbol": "GOOG",
-  "price": 102.47
+  "symbol": "BTCUSDT",
+  "price": 63542.12
 }
 ```
 
 ---
 
-## 📊 Simulated Stocks
+## 📊 Metrics
 
-| Symbol | Starting Price |
-|--------|---------------|
-| GOOG   | $100.00       |
-| AAPL   | $150.00       |
-| MSFT   | $200.00       |
+```
+GET /metrics
+```
 
-Prices drift by a random value in the range `[-5, +5]` each second.
+**Example Response:**
+
+```json
+{
+  "active_symbols": 2,
+  "binance_reconnects_total": 0,
+  "connected_clients": 5,
+  "messages_received_total": 1245,
+  "messages_sent_total": 9860,
+  "top_symbols": [
+    { "symbol": "BTCUSDT", "count": 3 },
+    { "symbol": "ETHUSDT", "count": 2 }
+  ]
+}
+```
 
 ---
 
-## ⚙️ Why Redis Pub/Sub?
+## ⚙️ Configuration
 
-Without Redis, price generation and delivery are coupled to a single process — you can't scale horizontally. By publishing to a Redis channel:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | HTTP/WS server port |
+| `REDIS_ADDR` | `localhost:6379` | Redis connection address |
 
-- Multiple server instances can run behind a load balancer
-- Each instance subscribes to the same channel and fans out to its local clients
-- The price generator only needs to run **once** (or be made leader-elected), not once per server
+**Render example:**
+
+```env
+REDIS_ADDR=<render-redis-host>:6379
+```
 
 ---
 
+## 🐳 Running with Docker
+
+```bash
+# Build the images
+docker compose build
+
+# Start services
+docker compose up
+```
+
+> Redis and the Go server both start automatically via Docker Compose.
+
+---
+
+## 🧪 Local Development
+
+```bash
+# Install dependencies
+go mod tidy
+
+# Start the server
+go run ./cmd/main.go
+```
+
+| Endpoint | URL |
+|----------|-----|
+| Server | `http://localhost:8080` |
+| Metrics | `http://localhost:8080/metrics` |
+| WebSocket | `ws://localhost:8080/ws` |
+
+---
+
+## 🔐 Reliability
+
+### Binance Reconnection
+
+If the Binance connection drops:
+
+1. Reconnect automatically
+2. Restore the WebSocket connection
+3. Re-subscribe to all active symbols
+4. Continue streaming — **zero server restarts needed**
+
+### Graceful Shutdown
+
+On `SIGINT` / `SIGTERM`:
+
+1. Stop accepting new requests
+2. Cancel background goroutines
+3. Close WebSocket connections
+4. Close Redis connections
+5. Exit cleanly ✅
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| 🐹 Language | Go |
+| 🔌 WebSockets | Gorilla WebSocket |
+| 📈 Market Data | Binance Streams |
+| 📨 Message Broker | Redis Pub/Sub |
+| ⚡ Concurrency | Goroutines + Channels |
+| 🐳 Containerization | Docker |
+| ☁️ Deployment | Render |
+| 📊 Metrics | Custom HTTP Metrics |
+
+---
+
+<div align="center">
+
+Built to learn and demonstrate **real-world event-driven backend architecture** using Go.
+
+*⭐ Star this repo if you found it helpful!*
+
+</div>
