@@ -237,6 +237,24 @@ GET /metrics
 
 ---
 
+## ⚡ Load Testing & Performance
+
+The Stock Simulator is optimized for high concurrency and has been load-tested with **10,000 concurrent WebSocket clients** to verify message delivery and system stability under high-throughput conditions.
+
+### Load Test Overview
+- **Concurrently Connected Clients**: 10,000
+- **Subscription**: Every client successfully subscribes to the live `BTCUSDT` stream.
+- **Heartbeat & Connection Management**: Keeps connections active without drops, responding to server-initiated pings within the timeout threshold.
+- **Implementation**: Driven by the custom load-test script in [internal/test/load.go](internal/test/load.go).
+
+### Performance Video
+
+A visualization of the WebSocket load test running against the dashboard:
+
+<video src="internal/assets/load_testing.mp4" width="100%" height="auto" controls autoplay loop muted></video>
+
+---
+
 ## ⚙️ Configuration
 
 | Variable | Default | Description |
