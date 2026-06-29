@@ -39,7 +39,6 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 		fmt.Println("Binance Connected")
 		resubOk := true
 		for k := range activeStocksMap {
-			metrics.IncrementTopSymbols(k)
 			subscribeMsg := map[string]interface{}{
 				"method": "SUBSCRIBE",
 				"params": []string{
@@ -154,9 +153,6 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 
 				case <-ctx.Done():
 					return
-				}
-				for k:= range activeStocksMap {
-					metrics.DecrementTopSymbols(k)
 				}
 				break connectedLoop
 			}

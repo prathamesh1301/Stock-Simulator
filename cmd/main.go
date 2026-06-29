@@ -67,8 +67,8 @@ func main() {
 		log.Printf("REDIS CONNECTION FAILED: %v", err)
 	}
 
-	wg.Add(1)
 	// go market.StockPriceGenerator(ctx, redisClient, &wg)
+	wg.Add(1)
 	go market.StartBinanceMarket(ctx, redisClient, &wg, feedCommands)
 	wg.Add(1)
 	go market.StartRedisSubscriber(ctx, redisClient, hubS, &wg)

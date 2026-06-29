@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"runtime"
 	"sort"
@@ -78,6 +79,7 @@ func GetTopSymbols() []SymbolCount {
 	return getTop5Symbols()
 }
 func GetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("metrics hit")
 	TopSymbolsMu.Lock()
 	ActiveSymbols = int64(len(TopSymbols))
 	top5 := getTop5Symbols()
@@ -94,5 +96,9 @@ func GetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(snap)
+
+	// Do this instead:
+	if err := json.NewEncoder(w).Encode(snap); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

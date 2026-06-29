@@ -102,6 +102,7 @@ func (h *Hub) Run(ctx context.Context, wg *sync.WaitGroup, feedCommands chan dom
 				}
 				h.Subscriptions[cmd.Symbol][cmd.Client] = true
 				h.SymbolCounts[cmd.Symbol]++
+				metrics.IncrementTopSymbols(cmd.Symbol)
 				if h.SymbolCounts[cmd.Symbol] == 1 {
 					feedCommands <- domain.FeedCommand{Symbol: cmd.Symbol, Action: "subscribe"}
 				}
