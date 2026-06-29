@@ -251,7 +251,7 @@ The Stock Simulator is optimized for high concurrency and has been load-tested w
 
 A visualization of the WebSocket load test running against the dashboard:
 
-<video src="https://raw.githubusercontent.com/prathamesh1301/Stock-Simulator/main/internal/assets/load_testing.mp4" width="100%" height="auto" controls autoplay loop muted></video>
+https://github.com/user-attachments/assets/51e98b1c-ec1f-4dd5-970f-045538380f52
 
 ---
 
