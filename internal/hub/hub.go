@@ -16,6 +16,7 @@ type Hub struct {
 	Subscriptions map[string]map[*domain.Client]bool
 	SymbolCounts  map[string]int
 	FeedCommands  chan domain.FeedCommand
+	SubscribeCmds chan domain.SubscribeCmd // ReadPump sends here; only hub.Run touches the maps
 }
 
 func NewHub() *Hub {
@@ -28,6 +29,7 @@ func NewHub() *Hub {
 		Subscriptions: make(map[string]map[*domain.Client]bool),
 		SymbolCounts:  make(map[string]int),
 		FeedCommands:  make(chan domain.FeedCommand, 64),
+		SubscribeCmds: make(chan domain.SubscribeCmd, 256),
 	}
 }
 
@@ -90,6 +92,35 @@ func (h *Hub) Run(ctx context.Context, wg *sync.WaitGroup, feedCommands chan dom
 					h.Unregister <- client
 				}
 			}
+
+		case cmd := <-h.SubscribeCmds:
+			// All map mutations happen here — single goroutine, no race.
+			if cmd.Action == "subscribe" {
+				cmd.Client.Subscriptions[cmd.Symbol] = true
+				if _, ok := h.Subscriptions[cmd.Symbol]; !ok {
+					h.Subscriptions[cmd.Symbol] = make(map[*domain.Client]bool)
+				}
+				h.Subscriptions[cmd.Symbol][cmd.Client] = true
+				h.SymbolCounts[cmd.Symbol]++
+				if h.SymbolCounts[cmd.Symbol] == 1 {
+					feedCommands <- domain.FeedCommand{Symbol: cmd.Symbol, Action: "subscribe"}
+				}
+			} else {
+				delete(cmd.Client.Subscriptions, cmd.Symbol)
+				metrics.DecrementTopSymbols(cmd.Symbol)
+				h.SymbolCounts[cmd.Symbol]--
+				if h.SymbolCounts[cmd.Symbol] == 0 {
+					delete(h.SymbolCounts, cmd.Symbol)
+					feedCommands <- domain.FeedCommand{Symbol: cmd.Symbol, Action: "unsubscribe"}
+				}
+				if subscribers, ok := h.Subscriptions[cmd.Symbol]; ok {
+					delete(subscribers, cmd.Client)
+					if len(subscribers) == 0 {
+						delete(h.Subscriptions, cmd.Symbol)
+					}
+				}
+			}
+
 		case feed := <-h.FeedCommands:
 			fmt.Println("Feed command received in hub for stock :", feed.Symbol)
 			feedCommands <- feed

@@ -17,4 +17,4 @@ func NewClient() *goredis.Client {
 	return goredis.NewClient(&goredis.Options{
 		Addr: addr,
 	})
-}
+}

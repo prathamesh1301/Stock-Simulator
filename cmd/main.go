@@ -56,7 +56,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
-	feedCommands := make(chan domain.FeedCommand)
+	// Buffer feedCommands so the hub never blocks relaying unsubscribe events
+	// to StartBinanceMarket during its 5-second reconnect window.
+	feedCommands := make(chan domain.FeedCommand, 64)
 	wg.Add(1)
 	go hubS.Run(ctx, &wg, feedCommands)
 	redisClient := redis.NewClient()
