@@ -33,3 +33,9 @@ jobs:
 
       - name: Build Go application
         run: go build ./...
+      
+      
+      - name: Build Docker image
+        run: |
+          docker build -t stock-simulator:${{ github.sha }} .
+
