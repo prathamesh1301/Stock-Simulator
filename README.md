@@ -13,7 +13,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Binance](https://img.shields.io/badge/Binance-WebSocket-F0B90B?style=for-the-badge&logo=binance&logoColor=white)](https://binance.com/)
 [![AWS](https://img.shields.io/badge/AWS-Deploy%20Ready-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/)
-[![CI/CD](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](.github/workflows/deploy.yml)
+[![CI/CD](https://github.com/prathamesh1301/Stock-Simulator/actions/workflows/deploy.yml/badge.svg)](https://github.com/prathamesh1301/Stock-Simulator/actions/workflows/deploy.yml)
 
 <br/>
 
@@ -535,6 +535,20 @@ Clients then connect with `wss://your-domain/ws`. Open port 443 in the security 
 ## 🚀 CI/CD Pipeline
 
 Every push to `main` automatically tests, builds, and deploys the application to the AWS EC2 instance via GitHub Actions — no manual steps required.
+
+### ✅ Pipeline proof
+
+The badge below reflects the **live status** of the last workflow run directly from GitHub Actions:
+
+[![Stock Simulator CI/CD](https://github.com/prathamesh1301/Stock-Simulator/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/prathamesh1301/Stock-Simulator/actions/workflows/deploy.yml)
+
+Click the badge to open the full run history, logs, and per-step output.
+
+**GitHub Actions run — all steps passing:**
+
+<div align="center">
+<img src="internal/assets/github-actions.png" alt="GitHub Actions CI/CD pipeline run showing all steps passing" width="850">
+</div>
 
 ### Pipeline overview
 
