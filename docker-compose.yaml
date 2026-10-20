@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
 
   app:
-    image: stock-sim:latest
+    image: stock-simulator-app:latest
     container_name: stock-sim
     env_file:
       - .env
