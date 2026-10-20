@@ -13,6 +13,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Binance](https://img.shields.io/badge/Binance-WebSocket-F0B90B?style=for-the-badge&logo=binance&logoColor=white)](https://binance.com/)
 [![AWS](https://img.shields.io/badge/AWS-Deploy%20Ready-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/)
+[![CI/CD](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](.github/workflows/deploy.yml)
 
 <br/>
 
@@ -507,7 +508,7 @@ Clients then connect with `wss://your-domain/ws`. Open port 443 in the security 
 | Task | Command (run in the project folder) |
 |------|-------------------------------------|
 | View app logs | `docker compose logs -f app` |
-| Deploy an update | `git pull && docker compose up -d --build` |
+| Deploy an update | Push to `main` — GitHub Actions handles the rest automatically |
 | Restart | `docker compose restart` |
 | Stop everything | `docker compose down` |
 | Free disk space | `docker image prune -f` |
@@ -528,6 +529,78 @@ Clients then connect with `wss://your-domain/ws`. Open port 443 in the security 
 
 - Stop the instance when you are not using it. The public IP changes on restart, and the containers start again on their own.
 - Terminating the instance deletes its disk. Redis holds only live pub/sub traffic, so nothing important is lost.
+
+---
+
+## 🚀 CI/CD Pipeline
+
+Every push to `main` automatically tests, builds, and deploys the application to the AWS EC2 instance via GitHub Actions — no manual steps required.
+
+### Pipeline overview
+
+```
+  git push → main
+        │
+        ▼
+  ┌─────────────────────────────────────────┐
+  │          GitHub Actions Runner          │
+  │                                         │
+  │  1. go test ./...          (all tests)  │
+  │  2. go build ./...         (compile)    │
+  │  3. docker build           (image)      │
+  │  4. docker save → .tar     (export)     │
+  │  5. SSH → copy .tar + compose to EC2   │
+  │  6. SSH → docker load + compose up     │
+  └─────────────────────────────────────────┘
+        │
+        ▼
+  EC2: new container running, old one replaced
+```
+
+### Trigger conditions
+
+| Event | Test & Build | Deploy to EC2 |
+|-------|:------------:|:--------------:|
+| Push to `main` | ✅ | ✅ |
+| Pull request to `main` | ✅ | ❌ |
+| Manual (`workflow_dispatch`) | ✅ | ✅ |
+
+> Pull requests only run tests and build — they never touch the live server.
+
+### Pipeline stages
+
+| Step | What it does |
+|------|--------------|
+| **Checkout** | Pulls the repository code |
+| **Set up Go** | Installs the Go version from `go.mod`, with module cache |
+| **Run tests** | `go test ./...` — fails fast if any test breaks |
+| **Build Go app** | `go build ./...` — validates the binary compiles cleanly |
+| **Build Docker image** | Builds `stock-simulator-app:latest` from the `Dockerfile` |
+| **Save image** | `docker save` exports the image to a `.tar` archive |
+| **Configure SSH** | Writes the private key and `known_hosts` from GitHub Secrets |
+| **Copy to EC2** | Streams the `.tar` and `docker-compose.yaml` to the instance over SSH |
+| **Deploy** | `docker load` + `docker compose up -d --no-build --force-recreate app` |
+
+### Required GitHub Secrets & Variables
+
+Set these in **Settings → Secrets and variables → Actions** before the first run.
+
+| Name | Type | Description |
+|------|------|-------------|
+| `EC2_SSH_PRIVATE_KEY` | Secret | Private key (ed25519 `.pem`) used to SSH into the instance |
+| `EC2_KNOWN_HOSTS` | Secret | Output of `ssh-keyscan <EC2_PUBLIC_IP>` — prevents MITM |
+| `EC2_HOST` | Secret | Public IP or DNS of the EC2 instance |
+| `EC2_USER` | Variable | SSH username (e.g. `ubuntu`) |
+| `EC2_APP_DIR` | Variable | Absolute path to the project folder on EC2 (e.g. `/home/ubuntu/Stock-Simulator`) |
+
+### How the deploy works (no build on EC2)
+
+The Docker image is built entirely on the GitHub Actions runner and shipped to EC2 as a `.tar` file. The EC2 instance only needs to:
+
+1. `docker load` the pre-built image
+2. `docker compose up -d --no-build --force-recreate app`
+
+This means the instance never needs Go, Git, or enough RAM to compile — making `t3.micro` (1 GB) a viable production target.
 
 ---
 
@@ -565,6 +638,7 @@ On `SIGINT` / `SIGTERM`:
 | ⚡ Concurrency | Goroutines + Channels |
 | 🐳 Containerization | Docker |
 | ☁️ Deployment | AWS EC2 |
+| 🔄 CI/CD | GitHub Actions |
 | 📊 Metrics | Custom HTTP Metrics |
 
 ---
