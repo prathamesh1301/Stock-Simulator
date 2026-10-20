@@ -36,7 +36,7 @@ func StartBinanceMarket(ctx context.Context, redisClient *redis.Client, wg *sync
 			}
 			continue
 		}
-		fmt.Println("Binance Connected")
+		fmt.Println("Binance Connected-Github Actions Check")
 		resubOk := true
 		for k := range activeStocksMap {
 			subscribeMsg := map[string]interface{}{
