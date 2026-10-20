@@ -57,6 +57,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       
+      
       - name: Copy image and Compose file to EC2
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
@@ -64,18 +65,25 @@ jobs:
           EC2_USER: ${{ vars.EC2_USER }}
           EC2_APP_DIR: ${{ vars.EC2_APP_DIR }}
         run: |
-          which scp
-          scp -V || true
+          set -euo pipefail
 
-          scp -i ~/.ssh/id_ed25519 \
-            -o StrictHostKeyChecking=yes \
-            stock-simulator-image.tar \
-            "${EC2_USER}@${EC2_HOST}:/tmp/stock-simulator-image.tar"
+          SSH=(ssh -i ~/.ssh/id_ed25519
+            -o StrictHostKeyChecking=yes
+            -o BatchMode=yes)
 
-          scp -i ~/.ssh/id_ed25519 \
-            -o StrictHostKeyChecking=yes \
-            docker-compose.yaml \
-            "${EC2_USER}@${EC2_HOST}:${EC2_APP_DIR}/docker-compose.yaml"
+          echo "Checking SSH connection..."
+          "${SSH[@]}" "$EC2_USER@$EC2_HOST" "echo SSH connection successful"
+
+          echo "Transferring Docker image..."
+          cat stock-simulator-image.tar |
+            "${SSH[@]}" "$EC2_USER@$EC2_HOST" \
+            "cat > /tmp/stock-simulator-image.tar"
+
+          echo "Transferring Compose file..."
+          "${SSH[@]}" "$EC2_USER@$EC2_HOST" \
+            "cat > '$EC2_APP_DIR/docker-compose.yaml'" \
+            < docker-compose.yaml
+
 
 
       - name: Deploy application to EC2
