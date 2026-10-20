@@ -1,168 +1,190 @@
+<div align="center">
+
 # 📈 Stock Simulator
 
 **A production-style, real-time market data streaming server**
 
-Built with Go · WebSockets · Redis Pub/Sub · Binance Streams · AWS EC2
+*Built with Go · WebSockets · Redis Pub/Sub · Binance Streams*
+
+<br/>
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
 [![Redis](https://img.shields.io/badge/Redis-Pub%2FSub-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Binance](https://img.shields.io/badge/Binance-WebSocket-F0B90B?style=for-the-badge&logo=binance&logoColor=white)](https://binance.com/)
-[![AWS EC2](https://img.shields.io/badge/AWS-EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/ec2/)
+[![AWS](https://img.shields.io/badge/AWS-Deploy%20Ready-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/)
 
-A real-time market data streaming server where WebSocket clients subscribe to cryptocurrency symbols and receive live market updates. The system includes dynamic feed management, automatic reconnection, Redis Pub/Sub, connection monitoring, and backpressure handling.
+<br/>
 
-## 🚀 Live Deployment
+> WebSocket clients subscribe to crypto symbols and receive **live market updates** with automatic feed management, reconnection handling, metrics, and horizontal scalability.
 
-The application is deployed on an AWS EC2 instance and exposed through a DuckDNS domain.
+</div>
 
-| Component | Details |
-|---|---|
-| Cloud deployment | AWS EC2 |
-| Domain | [prathamesh-stocksim.duckdns.org](http://prathamesh-stocksim.duckdns.org) |
-| WebSocket endpoint | `ws://prathamesh-stocksim.duckdns.org/ws` |
-| Metrics endpoint | `http://prathamesh-stocksim.duckdns.org/metrics` |
-| Containerization | Docker Compose |
-| Message broker | Redis Pub/Sub |
-
-**Connect to the live server:**
-
-```text
-ws://prathamesh-stocksim.duckdns.org/ws
-```
-
-> The current endpoint uses `ws://`. Configure TLS and a reverse proxy before switching to `wss://`.
+---
 
 ## ✨ Features
 
+<table>
+<tr>
+<td width="50%">
+
 ### 📡 Real-Time Market Data
-- Live cryptocurrency trade data from Binance WebSocket streams
-- Dynamic symbol subscriptions and unsubscriptions
-- Feed connections activated based on active subscriptions
+- Live prices from Binance WebSocket streams
+- Dynamic symbol subscriptions & unsubscriptions
+- Feed activates **only when a client is listening**
 
 ### 🔌 WebSocket Server
-- Concurrent WebSocket clients
-- Per-client symbol subscriptions
+- Multiple concurrent clients
+- Per-client subscriptions
 - Heartbeat ping/pong support
-- Stale connection cleanup
-- Backpressure handling for slow consumers
+- Stale connection cleanup & backpressure protection
 
 ### 🔴 Redis Pub/Sub
-- Decouples market data ingestion from client delivery
-- Supports distributing market events across WebSocket server instances
-- Separates exchange feed processing from client-facing delivery
+- Decouples ingestion from delivery
+- Enables **horizontal scaling**
+- Multiple WS server instances share the same feed
 
-### 🎛️ Dynamic Feed Management
-- Tracks active subscriber counts per symbol
-- Subscribes to Binance when the first client requests a symbol
-- Unsubscribes when the last client disconnects or stops listening
-- Avoids unnecessary upstream feed subscriptions
+</td>
+<td width="50%">
+
+### 🎛️ Feed Management
+- Tracks active symbol counts
+- Auto-subscribes to Binance on first client
+- Auto-unsubscribes when last client leaves
+- Prevents unnecessary Binance traffic
 
 ### 🛡️ Reliability
-- Automatic Binance WebSocket reconnection
-- Re-subscription to active symbols after reconnecting
-- Graceful shutdown using SIGINT/SIGTERM
-- Context-based cancellation and connection cleanup
+- Automatic Binance reconnection
+- Stream re-subscription after reconnect
+- Graceful shutdown (SIGINT/SIGTERM)
+- Context-based cancellation
 
 ### 📊 Observability
-- Connected client count
-- Active symbol count
-- Message counters
+- Connected clients, active symbols
+- Messages received / sent totals
 - Binance reconnect counter
-- Most subscribed symbols
+- Top subscribed symbols
+
+</td>
+</tr>
+</table>
+
+---
 
 ## 🏗️ Architecture
 
-```text
-             Binance WebSocket Feed
-                       |
-                       v
-          +---------------------------+
-          | Binance Ingestion Service |
-          | Dynamic subscriptions     |
-          | Reconnection handling     |
-          +-------------+-------------+
-                        |
-                   Redis Publish
-                        |
-                        v
-                Redis Pub/Sub
-                        |
-                  Redis Subscribe
-                        |
-                        v
-          +---------------------------+
-          |     Redis Subscriber     |
-          +-------------+-------------+
-                        |
-                    Broadcast
-                        |
-                        v
-          +---------------------------+
-          |            Hub            |
-          | Client registration       |
-          | Symbol subscription state |
-          | Event routing             |
-          +-------------+-------------+
-                        |
-                +-------+-------+
-                |               |
-                v               v
-             Client A        Client B
-             BTCUSDT         ETHUSDT
 ```
+                       ┌──────────────────┐
+                       │ Binance WS Feed  │
+                       └─────────┬────────┘
+                                 │  live trade stream
+                                 ▼
+                 ┌────────────────────────────┐
+                 │  Binance Ingestion Service │
+                 │                            │
+                 │  · Dynamic Feed Management │
+                 │  · Reconnection Logic      │
+                 └─────────────┬──────────────┘
+                               │  publish
+                               ▼
+                      Redis Pub/Sub Channel
+                               │  subscribe
+                               ▼
+                 ┌───────────────────────────┐
+                 │       Redis Subscriber    │
+                 └─────────────┬─────────────┘
+                               │  broadcast
+                               ▼
+                 ┌───────────────────────────┐
+                 │            Hub            │
+                 │  · Register / Unregister  │
+                 │  · Broadcast Events       │
+                 │  · Symbol Tracking        │
+                 └────────┬──────────┬───────┘
+                          │          │
+                          ▼          ▼
+                      Client A    Client B
+                      BTCUSDT     ETHUSDT
+```
+
+---
+
+## 📦 Project Structure
+
+```
+stock-sim/
+├── cmd/
+│   └── main.go                  # Entry point
+│
+├── internal/
+│   ├── domain/
+│   │   ├── binance.go
+│   │   ├── client.go
+│   │   ├── feed_command.go
+│   │   ├── market_event.go
+│   │   ├── stock.go
+│   │   └── subscription.go
+│   │
+│   ├── hub/
+│   │   └── hub.go               # Client registration & broadcasting
+│   │
+│   ├── market/
+│   │   ├── binance.go           # Binance WS ingestion
+│   │   └── subscriber.go        # Redis subscriber
+│   │
+│   ├── metrics/
+│   │   └── metrics.go           # Custom HTTP metrics
+│   │
+│   ├── redis/
+│   │   └── client.go            # Redis client wrapper
+│   │
+│   └── websocket/
+│       └── pumps.go             # Read/write pumps per client
+│
+├── Dockerfile
+├── docker-compose.yml
+├── .env
+└── README.md
+```
+
+---
 
 ## 🔄 Event Flow
 
 ### Client Subscription
 
-```text
-Client
-  |
-  v
-WebSocket Server
-  |
-  v
-Hub updates symbol subscriber count
-  |
-  +-- First subscriber? --> Subscribe to Binance feed
-  |
-  +-- Existing subscribers? --> Reuse active feed
+```
+Client  ──►  WebSocket  ──►  Hub
+                               │
+                    SymbolCount == 1?
+                               │
+                               └──►  FeedCommand(subscribe)  ──►  Binance Feed
 ```
 
 ### Market Data Flow
 
-```text
-Binance
-   |
-   v
-Ingestion Service
-   |
-   v
-Redis Pub/Sub
-   |
-   v
-Redis Subscriber
-   |
-   v
-Hub
-   |
-   v
-Subscribed WebSocket Clients
 ```
+Binance  ──►  Ingestion Service  ──►  Redis Publish
+                                            │
+                                      Redis Subscribe
+                                            │
+                                           Hub
+                                            │
+                                    Subscribed Clients
+```
+
+---
 
 ## 🔌 WebSocket API
 
 ### Connect
 
 | Environment | URL |
-|---|---|
+|-------------|-----|
 | Local | `ws://localhost:8080/ws` |
-| AWS EC2 deployment | `ws://prathamesh-stocksim.duckdns.org/ws` |
+| Production (HTTPS) | `wss://your-domain/ws` |
 
 ### Subscribe
-
-Send a JSON message after connecting:
 
 ```json
 {
@@ -180,9 +202,7 @@ Send a JSON message after connecting:
 }
 ```
 
-### Market Update
-
-Example server-to-client message:
+### Market Update (Server → Client)
 
 ```json
 {
@@ -191,17 +211,15 @@ Example server-to-client message:
 }
 ```
 
-The example values are illustrative; actual prices and message fields depend on the incoming market data.
+---
 
 ## 📊 Metrics
 
-The server exposes a metrics endpoint:
-
-```text
+```
 GET /metrics
 ```
 
-Example response:
+**Example Response:**
 
 ```json
 {
@@ -211,153 +229,350 @@ Example response:
   "messages_received_total": 1245,
   "messages_sent_total": 9860,
   "top_symbols": [
-    {
-      "symbol": "BTCUSDT",
-      "count": 3
-    },
-    {
-      "symbol": "ETHUSDT",
-      "count": 2
-    }
+    { "symbol": "BTCUSDT", "count": 3 },
+    { "symbol": "ETHUSDT", "count": 2 }
   ]
 }
 ```
 
-The values above are illustrative.
+---
 
-## ⚡ Load Testing & Deployment Evidence
+## ⚡ Load Testing & Performance
 
-I built a custom Go load-testing script to evaluate concurrent WebSocket connections, subscription handling, and message delivery under load.
+The Stock Simulator is optimized for high concurrency and has been load-tested with **10,000 concurrent WebSocket clients** to verify message delivery and system stability under high-throughput conditions.
 
-### AWS EC2 Deployment
+### Load Test Overview
+- **Concurrently Connected Clients**: 10,000
+- **Subscription**: Every client successfully subscribes to the live `BTCUSDT` stream.
+- **Heartbeat & Connection Management**: Keeps connections active without drops, responding to server-initiated pings within the timeout threshold.
+- **Implementation**: Driven by the custom load-test script in [internal/test/load.go](internal/test/load.go).
 
-The application runs in Docker containers on an AWS EC2 instance, with Redis supporting the market data distribution pipeline.
+### Performance Video
 
-![Stock Simulator running on AWS EC2](assets/load_testing_video/stock-sim-aws.png)
+A visualization of the WebSocket load test running against the dashboard:
 
-*AWS EC2 deployment evidence.*
+https://github.com/user-attachments/assets/51e98b1c-ec1f-4dd5-970f-045538380f52
 
-### WebSocket Testing with Postman
-
-The live WebSocket endpoint can be tested using Postman's WebSocket client by connecting to the deployed domain and sending subscription messages.
-
-![Stock Simulator WebSocket testing in Postman](assets/load_testing_video/stock-sim-postman.png)
-
-*WebSocket connection and testing using Postman.*
-
-### Load Testing
-
-The project includes a custom Go load-testing script for simulating concurrent WebSocket clients and observing server behavior.
-
-- Concurrent client connection testing
-- Symbol subscription testing
-- Heartbeat and connection lifecycle testing
-- Message delivery and server metrics monitoring
-- Backpressure handling for slow consumers
-
-The project has been tested with up to **10,000 simulated concurrent WebSocket clients** in the load-testing environment.
+---
 
 ## ⚙️ Configuration
 
 | Variable | Default | Description |
-|---|---|---|
-| `PORT` | `8080` | HTTP and WebSocket server port |
+|----------|---------|-------------|
+| `PORT` | `8080` | HTTP/WS server port |
 | `REDIS_ADDR` | `localhost:6379` | Redis connection address |
 
-Configure environment-specific values through your environment or deployment configuration. Do not commit credentials or secret tokens to the repository.
+**AWS example:**
+
+```env
+REDIS_ADDR=<aws-redis-host>:6379
+```
+
+---
 
 ## 🐳 Running with Docker
 
-Build and start the application and Redis:
-
 ```bash
+# Build the images
 docker compose build
-docker compose up -d
+
+# Start services
+docker compose up
 ```
 
-Check running containers:
+> Redis and the Go server both start automatically via Docker Compose.
 
-```bash
-docker ps
-```
-
-View application logs:
-
-```bash
-docker logs -f stock-sim
-```
-
-Stop the services:
-
-```bash
-docker compose down
-```
+---
 
 ## 🧪 Local Development
 
-Install dependencies:
-
 ```bash
+# Install dependencies
 go mod tidy
-```
 
-Start the application:
-
-```bash
+# Start the server
 go run ./cmd/main.go
 ```
 
-Local endpoints:
-
-| Service | URL |
-|---|---|
+| Endpoint | URL |
+|----------|-----|
 | Server | `http://localhost:8080` |
 | Metrics | `http://localhost:8080/metrics` |
 | WebSocket | `ws://localhost:8080/ws` |
 
-## 🔐 Reliability & Connection Management
+---
+
+## ☁️ Deploying to AWS EC2
+
+The project runs on a single EC2 instance: Docker Compose runs the Go server and Redis, and Nginx sits in front to handle public traffic and the WebSocket upgrade.
+
+```
+ Client (Postman / browser / wscat)
+        │   ws://<EC2_PUBLIC_IP>/ws
+        ▼
+ AWS Security Group  ── allows 22 (my IP only), 80, 443
+        ▼
+ Nginx (port 80/443)  ── proxies HTTP + WebSocket upgrade
+        ▼
+ stock-sim container  (127.0.0.1:8080, not public)
+        ▼
+ redispubsub container (internal Docker network only, not public)
+        ▼
+ Binance WebSocket stream (outbound)
+```
+
+### ✅ Deployment proof
+
+**Stock Simulator running on an AWS EC2 instance:**
+
+<div align="center">
+<img src="internal/assets/stock-sim-aws.png" alt="Stock Simulator running on AWS EC2" width="850">
+</div>
+
+**Postman WebSocket client connected to the deployed server:**
+
+<div align="center">
+<img src="internal/assets/stock-sim-postman.png" alt="Postman WebSocket client connected to the deployed Stock Simulator" width="850">
+</div>
+
+### Requirements
+
+| Item | Choice | Notes |
+|------|--------|-------|
+| Region | A region where Binance is reachable (e.g. Mumbai `ap-south-1`) | Binance blocks some countries, such as the US |
+| OS | Ubuntu Server LTS | |
+| Instance | `t3.micro` (demo) | 1 GB RAM: add swap before building (see step 5) |
+| Disk | 16 GB recommended | Docker images use several GB |
+| Key pair | RSA `.pem` | Keep it private |
+
+**Security group rules**
+
+| Port | Source | Purpose |
+|------|--------|---------|
+| 22 | My IP | SSH administration |
+| 80 | Anywhere (`0.0.0.0/0`) | HTTP and WebSocket through Nginx |
+| 443 | Anywhere (`0.0.0.0/0`) | HTTPS / `wss://` (optional) |
+| 6379, 8080 | *not opened* | Redis and the app stay private |
+
+> Never open 6379 to the internet. An exposed Redis server with no password gets attacked quickly.
+
+### Step 1: Connect to the server
+
+```bash
+ssh -i your-key.pem ubuntu@<EC2_PUBLIC_IP>
+```
+
+The public IP changes every time the instance is stopped and started, so copy the current one from the EC2 console.
+
+### Step 2: Install Docker and Git
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose-v2 git
+sudo usermod -aG docker ubuntu
+exit
+```
+
+Reconnect with SSH so the Docker group change takes effect.
+
+### Step 3: Get the code
+
+```bash
+git clone https://github.com/prathamesh1301/Stock-Simulator.git
+cd Stock-Simulator
+touch .env
+```
+
+### Step 4: Use the production compose file
+
+The default `docker-compose.yaml` publishes Redis on port 6379. For the server, replace it so Redis stays on the internal Docker network, the app is reachable only by Nginx, and containers restart automatically:
+
+```bash
+cat > docker-compose.yaml <<'EOF'
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redispubsub
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: stock-sim
+    env_file:
+      - .env
+    environment:
+      - REDIS_ADDR=redispubsub:6379
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - redis
+    restart: unless-stopped
+EOF
+```
+
+| Change | Reason |
+|--------|--------|
+| No `ports` on Redis | The app reaches it as `redispubsub:6379` inside Docker; nothing public needs it |
+| `127.0.0.1:8080:8080` | Only Nginx on the same machine can reach the app |
+| `restart: unless-stopped` | Containers come back after a crash or reboot |
+| `redis:7-alpine` | Pinned version instead of `latest` |
+
+### Step 5: Add swap, then build and start
+
+The Go compiler can be killed on a 1 GB instance (`signal: killed`). A swap file prevents that:
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+free -h
+```
+
+Check that Binance is reachable from the server, then start everything:
+
+```bash
+curl -s https://api.binance.com/api/v3/ping     # should print {}
+docker compose up -d --build
+docker compose ps                                # both containers running
+curl http://localhost:8080/metrics               # metrics JSON
+```
+
+### Step 6: Put Nginx in front (with WebSocket support)
+
+```bash
+sudo apt install -y nginx
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo tee /etc/nginx/conf.d/stock-sim.conf > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+EOF
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+The `Upgrade` and `Connection` headers let the WebSocket handshake pass through, and the long timeouts stop Nginx from closing idle connections after 60 seconds.
+
+### Step 7: Test the WebSocket
+
+Use the public address with **no port number**:
+
+| Check | Address |
+|-------|---------|
+| Metrics | `http://<EC2_PUBLIC_IP>/metrics` |
+| WebSocket | `ws://<EC2_PUBLIC_IP>/ws` |
+
+**With Postman:** New → WebSocket → enter `ws://<EC2_PUBLIC_IP>/ws` → Connect → send:
+
+```json
+{ "type": "subscribe", "symbol": ["BTCUSDT", "ETHUSDT"] }
+```
+
+**With wscat:**
+
+```bash
+npm install -g wscat
+wscat -c ws://<EC2_PUBLIC_IP>/ws
+```
+
+Live `{"symbol": "...", "price": ...}` messages should start arriving (see the Postman screenshot above).
+
+### Optional: domain and HTTPS
+
+Point a domain (for example a free DuckDNS name) at the instance, set it as `server_name` in the Nginx config, then:
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain
+```
+
+Clients then connect with `wss://your-domain/ws`. Open port 443 in the security group first.
+
+### Operating the deployment
+
+| Task | Command (run in the project folder) |
+|------|-------------------------------------|
+| View app logs | `docker compose logs -f app` |
+| Deploy an update | `git pull && docker compose up -d --build` |
+| Restart | `docker compose restart` |
+| Stop everything | `docker compose down` |
+| Free disk space | `docker image prune -f` |
+
+### Troubleshooting
+
+| Symptom | Likely cause and fix |
+|---------|----------------------|
+| `signal: killed` during build | Out of memory: add the swap file from step 5, or build on a larger instance |
+| `env file .env not found` | Run `touch .env` in the project folder |
+| `docker: permission denied` | Reconnect over SSH after the `usermod` command |
+| `/metrics` works on the server but times out from outside | Port 80 is missing from the security group, or the public IP changed |
+| WebSocket connects, then drops after about a minute | The Nginx `Upgrade` headers or `proxy_read_timeout` are missing |
+| Connected but no prices | Check `docker compose logs app` for Binance errors, such as a region block |
+| `502 Bad Gateway` | The containers are not running: check `docker compose ps` |
+
+### Cost notes
+
+- Stop the instance when you are not using it. The public IP changes on restart, and the containers start again on their own.
+- Terminating the instance deletes its disk. Redis holds only live pub/sub traffic, so nothing important is lost.
+
+---
+
+## 🔐 Reliability
 
 ### Binance Reconnection
 
-When the upstream Binance WebSocket connection drops, the ingestion service attempts to reconnect and restore subscriptions for active symbols.
+If the Binance connection drops:
 
-1. Detect a connection failure.
-2. Attempt reconnection.
-3. Re-subscribe to active symbols.
-4. Resume market data ingestion without requiring a manual server restart.
+1. Reconnect automatically
+2. Restore the WebSocket connection
+3. Re-subscribe to all active symbols
+4. Continue streaming — **zero server restarts needed**
 
 ### Graceful Shutdown
 
-On SIGINT or SIGTERM, the application is designed to:
+On `SIGINT` / `SIGTERM`:
 
-1. Stop accepting new work.
-2. Cancel background goroutines.
-3. Close WebSocket connections.
-4. Close Redis connections.
-5. Exit cleanly.
+1. Stop accepting new requests
+2. Cancel background goroutines
+3. Close WebSocket connections
+4. Close Redis connections
+5. Exit cleanly ✅
 
-### Backpressure Handling
-
-Slow WebSocket consumers can cause outbound queues to fill when incoming market data arrives faster than clients can process it. The project explores bounded buffering and ring-buffer-based handling to improve behavior during bursts and avoid indefinite queue growth.
+---
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
-|---|---|
-| Language | Go |
-| WebSocket server | Gorilla WebSocket |
-| Market data | Binance WebSocket Streams |
-| Message broker | Redis Pub/Sub |
-| Concurrency | Goroutines and channels |
-| Burst handling | Ring buffer |
-| Containerization | Docker and Docker Compose |
-| Cloud deployment | AWS EC2 |
-| Domain | DuckDNS |
-| Monitoring | Custom HTTP metrics |
-| Testing | Postman and custom Go load tester |
+|-------|------------|
+| 🐹 Language | Go |
+| 🔌 WebSockets | Gorilla WebSocket |
+| 📈 Market Data | Binance Streams |
+| 📨 Message Broker | Redis Pub/Sub |
+| ⚡ Concurrency | Goroutines + Channels |
+| 🐳 Containerization | Docker |
+| ☁️ Deployment | AWS EC2 |
+| 📊 Metrics | Custom HTTP Metrics |
 
 ---
 
-Built to explore real-world event-driven backend architecture, concurrent data streaming, and reliable market data distribution using Go.
+<div align="center">
 
-⭐ Star the repository if you find it useful!
+Built to learn and demonstrate **real-world event-driven backend architecture** using Go.
+
+*⭐ Star this repo if you found it helpful!*
+
+</div>
