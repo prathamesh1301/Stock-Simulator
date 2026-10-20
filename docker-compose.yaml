@@ -1,3 +1,4 @@
+
 services:
   redis:
     image: redis:7-alpine
@@ -5,7 +6,7 @@ services:
     restart: unless-stopped
 
   app:
-    build: .
+    image: stock-sim:latest
     container_name: stock-sim
     env_file:
       - .env
